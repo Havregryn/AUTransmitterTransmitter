@@ -12,6 +12,8 @@
 
 #import "GrimsUdpLib.hpp"
 
+#define MIN_MSG_SIZE 32
+
 enum {
     paramOne = 0,
 };
@@ -32,7 +34,7 @@ public:
         chanCount = channelCount;
         sampleRate = float(inSampleRate);
         
-        trm.init();
+        trm.init(channelCount);
     }
 
     void reset() {
@@ -98,21 +100,16 @@ public:
             framesRcvdSet = true;
         }
         
-        // Perform per sample dsp on the incoming float *in before assigning it to *out
-        for (int channel = 0; channel < chanCount; ++channel) {
-            
-            // Get pointer to immutable input buffer and mutable output buffer
-            const float* in = (float*)inBufferListPtr->mBuffers[channel].mData;
-            //float* out = (float*)outBufferListPtr->mBuffers[channel].mData;
-            
-            for (int frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
-                const int frameOffset = int(frameIndex + bufferOffset);
+        // Looping through 32 samples of each channel in order to maintain MIN_MSG_SIZE
+        for(int section = 0; section < (int)frameCount / MIN_MSG_SIZE; section++) {
+            for(int channel = 0; channel < chanCount; ++channel) {
+                const float* in = (float*)inBufferListPtr->mBuffers[channel].mData;
+                //float* out = (float*)outBufferListPtr->mBuffers[channel].mData;
                 
-                // Do your sample by sample dsp here...
-                //out[frameOffset] = in[frameOffset];
-                
-                // Copying the single channel sample into the message:
-                trm.copySampleToMsg(in, frameOffset, channel);
+                for (int frameIndex = 0; frameIndex < MIN_MSG_SIZE; ++frameIndex) {
+                    const int frameOffset = int(frameIndex + bufferOffset) + section * MIN_MSG_SIZE;
+                    trm.copySampleToMsg(in, frameOffset, channel);
+                }
             }
         }
     }

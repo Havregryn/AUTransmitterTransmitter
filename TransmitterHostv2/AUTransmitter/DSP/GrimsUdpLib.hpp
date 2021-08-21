@@ -27,7 +27,7 @@
 #define SAMPLES_PR_MSG 32
 #define MAX_CHANNELS 2
 #define RECEIVER_NAME "grims-mac.local"
-#define RECEIVER_PORT "4967" // Transmitters must connect to this port!
+#define RECEIVER_PORT "4973" // Transmitters must connect to this port!
 
 #pragma mark TRANSMITTER
 
@@ -35,31 +35,33 @@ class UdpAudioTransmitter {
 public:
     UdpAudioTransmitter() { create_socket(); }
     
-    void init(){
+    void init(int channels){
+        this->channels = (uint16_t) channels;
         if(!socketIsOpen) { create_socket(); }
         for(int ch = 0; ch < MAX_CHANNELS; ch++) {
             sampleIx[ch] = 0;
-            msgBufIx[ch] = 0;
+            msgBufAudioStart[ch] = &msgBuf[sizeof(uint16_t) * 3 + ch * sizeof(float) * SAMPLES_PR_MSG];
         }
+        msgSize = sizeof(uint16_t) * 3 + channels * sizeof(float) * SAMPLES_PR_MSG;
+        
+        seqNr = 0;
     }
-    
-    
-
-
     
     // Called for each sample of every channel:
     void copySampleToMsg(const float *audioBuffer, int frameOffset, int channel){
-        if(sampleIx[channel] == 0) {
-            initNewAudioMsg(channel);
+        if(channel == 0 && sampleIx[0] == 0) {
+            initNewAudioMsg();
         }
-        msgBufPtr = (float *)&msgBuf[channel][msgBufIx[channel]];
+        
+        float* msgBufPtr = (float *)&msgBufAudioStart[channel][sampleIx[channel] * sizeof(float)];
         *msgBufPtr = audioBuffer[frameOffset];
-        msgBufIx[channel] += sizeof(float);
         sampleIx[channel] += 1;
         
-        if(sampleIx[channel] == SAMPLES_PR_MSG) {
-            transmit(channel);
-            sampleIx[channel] = 0;
+        if(channel == channels - 1 && sampleIx[channel] == SAMPLES_PR_MSG) {
+            transmit();
+            for(int ch = 0; ch < channels; ch++) {
+                sampleIx[ch] = 0;
+            }
         }
         
     }
@@ -83,11 +85,12 @@ private:
     struct sockaddr_storage their_addr;
     socklen_t addr_len;
     
-    char msgBuf[MAX_CHANNELS][(sizeof(float) * SAMPLES_PR_MSG) + (sizeof(int) * 10)];
-    int msgBufIx[MAX_CHANNELS];
-    float *msgBufPtr;
+    char msgBuf[sizeof(float) * SAMPLES_PR_MSG * MAX_CHANNELS + sizeof(int) * 10];
+    char* msgBufAudioStart[MAX_CHANNELS];
     int sampleIx[MAX_CHANNELS];
     uint16_t seqNr;
+    uint16_t channels;
+    int msgSize;
 
     
     
@@ -108,8 +111,6 @@ private:
                 perror("talker: socket");
                 continue;
             }
-            
-            // Here bind happens if receiver
             break;
         }
 
@@ -121,39 +122,58 @@ private:
         //printf("Transmitter: Socket was successfully set up!\n");
         socketIsOpen = true;
     
-        seqNr = 0;
         
         
         return 0;
     }
     
     // Called before copying frames into the message buffer:
-    void initNewAudioMsg(int channel) {
-            sampleIx[channel] = 0;
-            msgBufIx[channel] = 0;
+    void initNewAudioMsg() {
         
         // Copying into the message buffer:
-        memcpy(&msgBuf[channel][0], &seqNr, sizeof(uint16_t));
-        msgBufIx[channel] += sizeof(uint16_t);
+        memcpy(&msgBuf[0], &seqNr, sizeof(uint16_t));
         
         uint16_t fc = (uint16_t)SAMPLES_PR_MSG;
-        memcpy(&msgBuf[channel][msgBufIx[channel]], &fc, sizeof(uint16_t));
-        msgBufIx[channel] += sizeof(uint16_t);
+        memcpy(&msgBuf[sizeof(uint16_t)], &fc, sizeof(uint16_t));
         
-        uint8_t ch = (uint16_t)channel;
-        memcpy(&msgBuf[channel][msgBufIx[channel]], &ch, sizeof(uint16_t));
-        msgBufIx[channel] += sizeof(uint16_t);
+        uint16_t ch = (uint16_t)channels;
+        memcpy(&msgBuf[sizeof(uint16_t) * 2], &ch, sizeof(uint16_t));
+        //if(seqNr < 10) printf("Sent msg seqNr %d with %d channels\n", seqNr, ch);
         
-        if(channel == 0) { seqNr = ++seqNr % UINT16_MAX; }
+        
+        seqNr = ++seqNr % UINT16_MAX;
     }
     
     // Called after a message has been filled with samples:
-    void transmit(int channel){
+    void transmit(){
         if(socketIsOpen){
-            numbytes = sendto(sockfd, &msgBuf[channel][0], msgBufIx[channel], 0, p->ai_addr, p->ai_addrlen);
+            numbytes = sendto(sockfd, &msgBuf[0], msgSize, 0, p->ai_addr, p->ai_addrlen);
         }
     }
 };
 
+
+// New version: All channels into one message
+
+//
+
+//
+
+/*
+ New version: All channels into one message
+ seqNr, frameCount, channels, audio channel 0, audio channel 1...
+ EN peker som peker på starten av hvert kanalområde i buffer.
+ 
+ Skrive til buffer:
+ 
+ Init ny melding dersom ikke finnes fra før:
+    Skriv inn seqNr, frameCOunt, channels i buffer.
+ 
+ skrive audio i buffer:
+    Kopier til msgBufAudioStart + bufIx[channel] * sizeof(float)
+ 
+ Dersom bufIx har nådd meldingsgrensen: SEND, sett bufIx = 0;
+    
+ **/
 
 
