@@ -47,6 +47,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		488A1F9426DF99B100EA9395 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		48C50FEA26C433AA0010662B /* TransmitterHostv2.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TransmitterHostv2.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		48C50FED26C433AA0010662B /* TransmitterHostv2App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransmitterHostv2App.swift; sourceTree = "<group>"; };
 		48C50FEF26C433AA0010662B /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -92,6 +93,7 @@
 		48C50FE126C433AA0010662B = {
 			isa = PBXGroup;
 			children = (
+				488A1F9426DF99B100EA9395 /* README.md */,
 				48C50FEC26C433AA0010662B /* TransmitterHostv2 */,
 				48C5100226C433D20010662B /* AUTransmitter */,
 				48C50FEB26C433AA0010662B /* Products */,

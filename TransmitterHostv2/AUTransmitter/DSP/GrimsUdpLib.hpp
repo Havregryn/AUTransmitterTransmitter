@@ -26,8 +26,9 @@
 
 #define SAMPLES_PR_MSG 32
 #define MAX_CHANNELS 2
-#define RECEIVER_NAME "grims-mac.local"
-#define RECEIVER_PORT "4973" // Transmitters must connect to this port!
+#define RECEIVER_NAME "Hallgrims-MacBook-Pro.local"
+//#define RECEIVER_NAME "grims-mac.local"
+#define RECEIVER_PORT "4802" // Transmitters must connect to this port!
 
 #pragma mark TRANSMITTER
 
